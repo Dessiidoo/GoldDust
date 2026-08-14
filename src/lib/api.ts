@@ -24,7 +24,7 @@ async function callEdgeFunction(name: string, body?: object): Promise<any> {
 }
 
 export async function fetchMarketData(): Promise<{ snapshots: number; message: string }> {
-  return callEdgeFunction('fetch-market-data');
+  return callEdgeFunction('backfill-market-data');
 }
 
 export async function analyzeMarket(assetId?: string): Promise<{ signals: number; message: string }> {
@@ -77,16 +77,9 @@ export async function getPortfolio(): Promise<Portfolio | null> {
 export async function updatePortfolioStartingBalance(balance: number): Promise<void> {
   const { data: existing } = await supabase.from('portfolio').select('id').limit(1).maybeSingle();
   if (!existing) {
-    await supabase.from('portfolio').insert({
-      starting_balance: balance,
-      cash_balance: balance,
-      total_value: balance,
-    });
+    await supabase.from('portfolio').insert({ starting_balance: balance, cash_balance: balance, total_value: balance });
   } else {
-    await supabase
-      .from('portfolio')
-      .update({ starting_balance: balance, cash_balance: balance, updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
+    await supabase.from('portfolio').update({ starting_balance: balance, cash_balance: balance, updated_at: new Date().toISOString() }).eq('id', existing.id);
   }
 }
 
@@ -99,13 +92,7 @@ export async function getHoldings(): Promise<Holding[]> {
 export async function getLatestPrices(assetIds: string[]): Promise<Map<string, PriceSnapshot>> {
   const priceMap = new Map<string, PriceSnapshot>();
   for (const assetId of assetIds) {
-    const { data } = await supabase
-      .from('price_snapshots')
-      .select('*')
-      .eq('asset_id', assetId)
-      .order('recorded_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data } = await supabase.from('price_snapshots').select('*').eq('asset_id', assetId).order('recorded_at', { ascending: false }).limit(1).maybeSingle();
     if (data) priceMap.set(assetId, data);
   }
   return priceMap;
@@ -114,86 +101,50 @@ export async function getLatestPrices(assetIds: string[]): Promise<Map<string, P
 export async function getLatestSignals(assetIds: string[]): Promise<Map<string, Signal>> {
   const signalMap = new Map<string, Signal>();
   for (const assetId of assetIds) {
-    const { data } = await supabase
-      .from('signals')
-      .select('*')
-      .eq('asset_id', assetId)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data } = await supabase.from('signals').select('*').eq('asset_id', assetId).order('created_at', { ascending: false }).limit(1).maybeSingle();
     if (data) signalMap.set(assetId, data);
   }
   return signalMap;
 }
 
 export async function getRecentSignals(limit: number = 20): Promise<Signal[]> {
-  const { data, error } = await supabase
-    .from('signals')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.from('signals').select('*').order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getRecentTrades(limit: number = 30): Promise<Trade[]> {
-  const { data, error } = await supabase
-    .from('trades')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.from('trades').select('*').order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getAlertSettings(): Promise<AlertSettings | null> {
-  const { data, error } = await supabase
-    .from('alert_settings')
-    .select('*')
-    .limit(1)
-    .maybeSingle();
+  const { data, error } = await supabase.from('alert_settings').select('*').limit(1).maybeSingle();
   if (error) throw error;
   return data;
 }
 
 export async function updateAlertSettings(settings: Partial<AlertSettings>): Promise<void> {
   const { data: existing } = await supabase.from('alert_settings').select('id').limit(1).maybeSingle();
-  if (!existing) {
-    await supabase.from('alert_settings').insert(settings);
-  } else {
-    await supabase
-      .from('alert_settings')
-      .update({ ...settings, updated_at: new Date().toISOString() })
-      .eq('id', existing.id);
-  }
+  if (!existing) await supabase.from('alert_settings').insert(settings);
+  else await supabase.from('alert_settings').update({ ...settings, updated_at: new Date().toISOString() }).eq('id', existing.id);
 }
 
 export async function getAlertHistory(limit: number = 20): Promise<AlertHistoryItem[]> {
-  const { data, error } = await supabase
-    .from('alert_history')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.from('alert_history').select('*').order('created_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getPriceHistory(assetId: string, limit: number = 50): Promise<PriceSnapshot[]> {
-  const { data, error } = await supabase
-    .from('price_snapshots')
-    .select('*')
-    .eq('asset_id', assetId)
-    .order('recorded_at', { ascending: true })
-    .limit(limit);
+  const { data, error } = await supabase.from('price_snapshots').select('*').eq('asset_id', assetId).order('recorded_at', { ascending: true }).limit(limit);
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getDataSourceStatus(): Promise<DataSourceStatus[]> {
-  const { data, error } = await supabase
-    .from('data_source_status')
-    .select('*')
-    .order('source_name', { ascending: true });
+  const { data, error } = await supabase.from('data_source_status').select('*').order('source_name', { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
@@ -203,20 +154,13 @@ export async function fetchTrendData(): Promise<{ signals: number; message: stri
 }
 
 export async function getTrendSignals(limit: number = 100): Promise<TrendSignal[]> {
-  const { data, error } = await supabase
-    .from('trend_signals')
-    .select('*')
-    .order('recorded_at', { ascending: false })
-    .limit(limit);
+  const { data, error } = await supabase.from('trend_signals').select('*').order('recorded_at', { ascending: false }).limit(limit);
   if (error) throw error;
   return data ?? [];
 }
 
 export async function getTrendSourceStatus(): Promise<TrendSourceStatus[]> {
-  const { data, error } = await supabase
-    .from('trend_source_status')
-    .select('*')
-    .order('source_name', { ascending: true });
+  const { data, error } = await supabase.from('trend_source_status').select('*').order('source_name', { ascending: true });
   if (error) throw error;
   return data ?? [];
 }
