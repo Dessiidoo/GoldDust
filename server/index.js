@@ -1,9 +1,13 @@
 import express from 'express';
 import pg from 'pg';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const { Pool } = pg;
 const app = express();
 const port = process.env.PORT || 10000;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -35,6 +39,14 @@ app.get('/api/db/tables', async (_req, res) => {
     console.error('Table inspection failed:', error);
     res.status(500).json({ ok: false, error: 'Could not inspect database' });
   }
+});
+
+const distPath = path.resolve(__dirname, '../dist');
+app.use(express.static(distPath));
+
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api/')) return next();
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 app.listen(port, () => console.log(`GoldDust API listening on port ${port}`));
